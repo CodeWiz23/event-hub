@@ -135,6 +135,13 @@
         setInterval(() => {
           renderDashboard();
         }, 3000);
+
+        // Listen for storage changes to sync across tabs instantly
+        window.addEventListener("storage", (e) => {
+          if (e.key === "lh_bookings" || e.key === "lh_current_user") {
+            renderDashboard();
+          }
+        });
       });
 
       function renderDashboard() {
@@ -210,13 +217,25 @@
         const activeJobBadge = document.getElementById("activeJobBadge");
         const bookings = window.LocalHubStore.getBookings();
 
-        // Engaged active job has a state of accepted, dispatched, or arrived
+        // Engaged active job has a state of accepted, dispatched, arrived, delivered, finished, or paid
         const activeJob = bookings.find(b => 
-          b.status === "accepted" || b.status === "dispatched" || b.status === "arrived"
+          b.status === "accepted" || 
+          b.status === "dispatched" || 
+          b.status === "arrived" || 
+          b.status === "delivered" || 
+          b.status === "finished" || 
+          b.status === "paid"
         );
+
+        // Reactively track state transitions for provider toasts
+        let lastSeenProvider = JSON.parse(sessionStorage.getItem("lh_last_seen_provider") || "{}");
 
         if (!activeJob) {
           activeJobBadge.style.display = "none";
+          if (window.providerCountdownTimerId) {
+            clearInterval(window.providerCountdownTimerId);
+            window.providerCountdownTimerId = null;
+          }
           activeContainer.innerHTML = `
             <div class="empty-state">
               <p>You have no active engaged jobs.</p>
@@ -228,22 +247,106 @@
 
         activeJobBadge.style.display = "inline-block";
 
+        const orderType = activeJob.orderType || (activeJob.serviceCategory === "cleaning" ? "manpower" : "physical");
+
+        // Trigger live notifications on status changes
+        if (lastSeenProvider[activeJob.id] && lastSeenProvider[activeJob.id] !== activeJob.status) {
+          const curr = activeJob.status;
+          if (curr === "delivered") {
+            window.showToastNotification("Delivery man confirmed order delivery.", "info");
+          } else if (curr === "paid") {
+            window.showToastNotification("Workers confirmed work finished. Customer paid the bill!", "success");
+          } else if (curr === "completed") {
+            window.showToastNotification("Job successfully completed & closed!", "success");
+          }
+        }
+
+        // Save current status
+        lastSeenProvider[activeJob.id] = activeJob.status;
+        sessionStorage.setItem("lh_last_seen_provider", JSON.stringify(lastSeenProvider));
+
         let toggleBtnText = "";
         let toggleActionStatus = "";
         let statusDescriptionLabel = "";
+        let badgeText = "IN PROGRESS";
+        let badgeColor = "var(--emerald-500)";
+        let isBtnDisabled = false;
 
-        if (activeJob.status === "accepted") {
-          toggleBtnText = "Mark as Dispatched";
-          toggleActionStatus = "dispatched";
-          statusDescriptionLabel = "Status: <strong>Accepted</strong>. Customer has been notified. Ready to drive/dispatch?";
-        } else if (activeJob.status === "dispatched") {
-          toggleBtnText = "Mark as Arrived";
-          toggleActionStatus = "arrived";
-          statusDescriptionLabel = "Status: <strong>Dispatched</strong>. You are currently driving to customer's location.";
-        } else if (activeJob.status === "arrived") {
-          toggleBtnText = "Mark as Completed";
-          toggleActionStatus = "completed";
-          statusDescriptionLabel = "Status: <strong>Arrived</strong>. You have arrived at location! Complete job when finished.";
+        if (orderType === "physical") {
+          // Physical Items (Delivery) Flow
+          if (activeJob.status === "accepted") {
+            toggleBtnText = "Dispatch Order";
+            toggleActionStatus = "dispatched";
+            statusDescriptionLabel = "Status: <strong>Accepted</strong>. Please prepare the physical item. Once ready, click to dispatch the item with your delivery boy.";
+            badgeText = "PREPARING";
+            badgeColor = "var(--amber-500)";
+          } else if (activeJob.status === "dispatched") {
+            toggleBtnText = "Deliver Order (Delivery Boy Simulation)";
+            toggleActionStatus = "delivered";
+            statusDescriptionLabel = "Status: <strong>Dispatched</strong>. The product is currently on the way with your delivery boy. You can simulate the Delivery Boy delivering the order and receiving cash.";
+            badgeText = "IN TRANSIT";
+            badgeColor = "var(--blue-500)";
+          } else if (activeJob.status === "delivered") {
+            toggleBtnText = "Confirm Delivery";
+            toggleActionStatus = "completed";
+            statusDescriptionLabel = "🔔 <strong>Delivery man confirmed order delivery!</strong> A 30-second countdown has started. Please confirm delivery to officially close this transaction and release earnings.";
+            badgeText = "DELIVERED";
+            badgeColor = "var(--emerald-500)";
+          }
+        } else {
+          // Manpower Services Flow
+          if (activeJob.status === "accepted") {
+            toggleBtnText = "Dispatch Workers";
+            toggleActionStatus = "dispatched";
+            statusDescriptionLabel = "Status: <strong>Accepted</strong>. You have confirmed this service. Ready to dispatch your certified crew to the customer's site?";
+            badgeText = "ASSIGNED";
+            badgeColor = "var(--amber-500)";
+          } else if (activeJob.status === "dispatched") {
+            toggleBtnText = "Mark Workers as Arrived";
+            toggleActionStatus = "arrived";
+            statusDescriptionLabel = "Status: <strong>Dispatched</strong>. Your workers are currently traveling. Click to mark them as arrived when they reach the destination.";
+            badgeText = "TRAVELING";
+            badgeColor = "var(--blue-500)";
+          } else if (activeJob.status === "arrived") {
+            toggleBtnText = "Mark as Finished (Worker Simulation)";
+            toggleActionStatus = "finished";
+            statusDescriptionLabel = "Status: <strong>Arrived</strong>. Workers are on-site and actively performing the service. Click to simulate the crew finishing the physical labor.";
+            badgeText = "EXECUTING";
+            badgeColor = "var(--indigo-500)";
+          } else if (activeJob.status === "finished") {
+            toggleBtnText = "Awaiting Customer Payment...";
+            toggleActionStatus = "";
+            statusDescriptionLabel = "Status: <strong>Work Finished</strong>. Workers confirmed job completion! Awaiting customer to confirm and pay the bill of $"+activeJob.price+" from their dashboard.";
+            badgeText = "FINISHED";
+            badgeColor = "var(--purple-500)";
+            isBtnDisabled = true;
+          } else if (activeJob.status === "paid") {
+            toggleBtnText = "Confirm Work";
+            toggleActionStatus = "completed";
+            statusDescriptionLabel = "🔔 <strong>Workers confirmed work finished & Customer paid!</strong> A 30-second countdown has started. Please confirm work to officially close this request.";
+            badgeText = "PAID & READY";
+            badgeColor = "var(--emerald-500)";
+          }
+        }
+
+        // Apply dynamic badge colors
+        activeJobBadge.innerText = badgeText;
+        activeJobBadge.style.backgroundColor = badgeColor;
+
+        // Base Action HTML
+        let buttonHtml = "";
+        if (isBtnDisabled) {
+          buttonHtml = `
+            <button class="btn btn-secondary" style="cursor: not-allowed; opacity: 0.7;" disabled>
+              ${toggleBtnText}
+            </button>
+          `;
+        } else {
+          buttonHtml = `
+            <button class="btn btn-primary pulse-glow" onclick="progressJobState('${activeJob.id}', '${toggleActionStatus}')" id="progressJobBtn">
+              ${toggleBtnText}
+            </button>
+          `;
         }
 
         activeContainer.innerHTML = `
@@ -260,13 +363,37 @@
               ${statusDescriptionLabel}
             </p>
 
-            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
-              <button class="btn btn-primary pulse-glow" onclick="progressJobState('${activeJob.id}', '${toggleActionStatus}')" id="progressJobBtn">
-                ${toggleBtnText}
-              </button>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
+              ${buttonHtml}
+              ${(activeJob.status === "delivered" || activeJob.status === "paid") ? `
+                <div id="providerTimerCountdown" style="font-weight: 600; font-size: 0.85rem; color: var(--amber-600); margin-top: 0.25rem;">
+                  ⏱️ Loading countdown...
+                </div>
+              ` : ""}
             </div>
           </div>
         `;
+
+        // Handle countdown animation smoothly
+        if (window.providerCountdownTimerId) {
+          clearInterval(window.providerCountdownTimerId);
+          window.providerCountdownTimerId = null;
+        }
+
+        if (activeJob.status === "delivered" || activeJob.status === "paid") {
+          const timestamp = activeJob.status === "delivered" ? activeJob.deliveredAt : activeJob.paidAt;
+          const updateCountdown = () => {
+            const el = document.getElementById("providerTimerCountdown");
+            if (!el) return;
+            const elapsed = Math.floor((Date.now() - (timestamp || Date.now())) / 1000);
+            const remaining = Math.max(0, 30 - elapsed);
+            el.innerHTML = remaining > 0 
+              ? `⏱️ Confirm within: <strong style="color:var(--amber-600);">${remaining}s</strong>` 
+              : `⏱️ Timer elapsed (30s). Please confirm manually.`;
+          };
+          updateCountdown();
+          window.providerCountdownTimerId = setInterval(updateCountdown, 1000);
+        }
       }
 
       function progressJobState(bookingId, nextStatus) {

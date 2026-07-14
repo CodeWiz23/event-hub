@@ -237,6 +237,14 @@
           renderActiveOrderTracking();
           renderBillsHistory();
         }, 3000);
+
+        // Listen for storage changes to sync across tabs instantly
+        window.addEventListener("storage", (e) => {
+          if (e.key === "lh_bookings" || e.key === "lh_current_user") {
+            renderActiveOrderTracking();
+            renderBillsHistory();
+          }
+        });
       });
 
       // Catalog rendering with search & filters
@@ -318,7 +326,11 @@
         
         // Setup Date picker validation to prevent selecting past dates
         const dateInput = document.getElementById("bookingDate");
-        const todayStr = new Date().toISOString().split("T")[0];
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
         dateInput.min = todayStr;
         dateInput.value = todayStr;
 
@@ -343,7 +355,11 @@
         const user = window.LocalHubStore.getCurrentUser();
 
         // Validation: Ensure date is not in the past
-        const todayStr = new Date().toISOString().split("T")[0];
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
         if (dateStr < todayStr) {
           document.getElementById("bookingDateError").style.display = "block";
           return;
@@ -381,6 +397,9 @@
 
         const activeOrderBadge = document.getElementById("activeOrderBadge");
 
+        // Reactively track state transitions using sessionStorage
+        let lastSeenStatus = JSON.parse(sessionStorage.getItem("lh_last_seen_status") || "{}");
+
         if (!activeBooking) {
           activeOrderBadge.style.display = "none";
           trackerContainer.innerHTML = `
@@ -389,30 +408,143 @@
               <span style="font-size: 0.75rem; color: var(--slate-400);">Choose an option from the catalog to book one!</span>
             </div>
           `;
+
+          // Handle if the previous active booking has been completed by the provider
+          const completedBooking = bookings.find(b => 
+            lastSeenStatus[b.id] && 
+            lastSeenStatus[b.id] !== "completed" && 
+            lastSeenStatus[b.id] !== "declined" && 
+            b.status === "completed" &&
+            b.customerEmail === user.email
+          );
+
+          if (completedBooking) {
+            window.showToastNotification(`Your order ${completedBooking.id} has been officially closed & confirmed by the provider!`, "success");
+            activeReviewBookingId = completedBooking.id;
+            document.getElementById("reviewPanel").style.display = "block";
+            setStarRating(5);
+            
+            // Mark completed in session state to prevent repeat prompts
+            lastSeenStatus[completedBooking.id] = "completed";
+            sessionStorage.setItem("lh_last_seen_status", JSON.stringify(lastSeenStatus));
+            renderBillsHistory();
+          }
           return;
         }
 
         activeOrderBadge.style.display = "inline-block";
 
-        // Map order states to step numbers: pending -> accepted -> dispatched -> arrived
-        const steps = [
-          { status: "pending", title: "Order Placed", desc: "Awaiting service provider acceptance." },
-          { status: "accepted", title: "Order Accepted", desc: "Provider is preparing details." },
-          { status: "dispatched", title: "Dispatched", desc: "Provider is on the way to your location!" },
-          { status: "arrived", title: "Arrived", desc: "Provider has arrived at the location!" }
-        ];
+        const orderType = activeBooking.orderType || (activeBooking.serviceCategory === "cleaning" ? "manpower" : "physical");
 
+        // Trigger live notifications on state change
+        if (lastSeenStatus[activeBooking.id] && lastSeenStatus[activeBooking.id] !== activeBooking.status) {
+          const prev = lastSeenStatus[activeBooking.id];
+          const curr = activeBooking.status;
+
+          if (curr === "dispatched") {
+            if (orderType === "physical") {
+              window.showToastNotification("Your product is on the way!", "info");
+            } else {
+              window.showToastNotification("Workers are on their way to your location!", "info");
+            }
+          } else if (curr === "arrived") {
+            window.showToastNotification("Workers have arrived at your location and are starting the work!", "info");
+          } else if (curr === "finished") {
+            window.showToastNotification("Workers have finished the job. Please pay the bill!", "success");
+          } else if (curr === "delivered") {
+            window.showToastNotification("Delivery boy has marked your order as delivered!", "success");
+          } else if (curr === "paid") {
+            window.showToastNotification("Payment submitted! Awaiting final Provider confirmation.", "info");
+          }
+        }
+
+        // Save current status
+        lastSeenStatus[activeBooking.id] = activeBooking.status;
+        sessionStorage.setItem("lh_last_seen_status", JSON.stringify(lastSeenStatus));
+
+        // Generate steps and layout based on orderType
+        let steps = [];
         let activeStepIndex = 0;
-        if (activeBooking.status === "accepted") activeStepIndex = 1;
-        else if (activeBooking.status === "dispatched") activeStepIndex = 2;
-        else if (activeBooking.status === "arrived") activeStepIndex = 3;
+        let interactiveHtml = "";
+
+        if (orderType === "physical") {
+          steps = [
+            { key: "pending", title: "Order Placed", desc: "Awaiting service provider acceptance." },
+            { key: "accepted", title: "Preparing Item", desc: "Provider is preparing details." },
+            { key: "dispatched", title: "Dispatched", desc: "Your product is on the way!" },
+            { key: "delivered", title: "Delivered & Paid", desc: "Delivery complete." }
+          ];
+
+          if (activeBooking.status === "accepted") activeStepIndex = 1;
+          else if (activeBooking.status === "dispatched") activeStepIndex = 2;
+          else if (activeBooking.status === "delivered" || activeBooking.status === "completed") activeStepIndex = 3;
+
+          // If delivered, display 30-second countdown
+          if (activeBooking.status === "delivered") {
+            const elapsed = Math.floor((Date.now() - (activeBooking.deliveredAt || Date.now())) / 1000);
+            const remaining = Math.max(0, 30 - elapsed);
+            interactiveHtml = `
+              <div class="tracking-interactive-box" style="border-left-color: var(--emerald-500); background-color: rgba(16, 185, 129, 0.05); margin-top: 1rem; border-left-width: 4px; padding: 1rem; border-radius: var(--radius-md);">
+                <p style="margin-bottom: 0.5rem; color: var(--slate-800); font-size: 0.9rem;">📦 <strong>Order Delivered!</strong> The delivery boy has marked your order as delivered. Payment received.</p>
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--emerald-700); font-weight: 500;">
+                  <div style="width: 12px; height: 12px; border: 2px solid var(--emerald-600); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                  <span>
+                    ${remaining > 0 ? `Provider confirming order. Auto-closing in: <strong>${remaining}s</strong>` : "Awaiting final Provider confirmation..."}
+                  </span>
+                </div>
+              </div>
+            `;
+          }
+        } else {
+          // Manpower Services Workflow
+          steps = [
+            { key: "pending", title: "Order Placed", desc: "Awaiting service provider acceptance." },
+            { key: "accepted", title: "Workers Assigned", desc: "Provider accepted and assigned workers." },
+            { key: "executing", title: "Job Execution", desc: "Workers on site performing job." },
+            { key: "finished", title: "Finished & Paid", desc: "Job complete & transaction closed." }
+          ];
+
+          if (activeBooking.status === "accepted") activeStepIndex = 1;
+          else if (activeBooking.status === "dispatched" || activeBooking.status === "arrived") activeStepIndex = 2;
+          else if (activeBooking.status === "finished" || activeBooking.status === "paid" || activeBooking.status === "completed") activeStepIndex = 3;
+
+          if (activeBooking.status === "finished") {
+            interactiveHtml = `
+              <div class="tracking-interactive-box" style="border-left-color: var(--indigo-500); margin-top: 1rem; border-left-width: 4px; padding: 1rem; border-radius: var(--radius-md); background-color: rgba(99, 102, 241, 0.05);">
+                <p style="margin-bottom: 0.75rem; color: var(--slate-800); font-size: 0.9rem;">🧹 <strong>Workers finished the job!</strong> Please confirm and pay the bill of <strong>$${activeBooking.price}</strong> to complete the transaction.</p>
+                <button class="btn btn-sm btn-primary pulse-glow" onclick="payManpowerBill('${activeBooking.id}')" style="width: 100%;">Pay Bill ($${activeBooking.price})</button>
+              </div>
+            `;
+          } else if (activeBooking.status === "paid") {
+            const elapsed = Math.floor((Date.now() - (activeBooking.paidAt || Date.now())) / 1000);
+            const remaining = Math.max(0, 30 - elapsed);
+            interactiveHtml = `
+              <div class="tracking-interactive-box" style="border-left-color: var(--emerald-500); background-color: rgba(16, 185, 129, 0.05); margin-top: 1rem; border-left-width: 4px; padding: 1rem; border-radius: var(--radius-md);">
+                <p style="margin-bottom: 0.5rem; color: var(--slate-800); font-size: 0.9rem;">💳 <strong>Payment Confirmed!</strong> Your payment has been received successfully.</p>
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--emerald-700); font-weight: 500;">
+                  <div style="width: 12px; height: 12px; border: 2px solid var(--emerald-600); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                  <span>
+                    ${remaining > 0 ? `Provider closing request. Auto-closing in: <strong>${remaining}s</strong>` : "Awaiting final Provider confirmation..."}
+                  </span>
+                </div>
+              </div>
+            `;
+          }
+        }
 
         const timelineHtml = steps.map((step, idx) => {
           let stepClass = "";
+          let stepDesc = step.desc;
+
           if (idx < activeStepIndex) {
             stepClass = "completed";
           } else if (idx === activeStepIndex) {
             stepClass = "active";
+            if (orderType === "manpower" && idx === 2) {
+              stepDesc = activeBooking.status === "arrived" 
+                ? "Workers have arrived and are executing job!" 
+                : "Workers are on their way to your location!";
+            }
           }
 
           return `
@@ -420,22 +552,11 @@
               <div class="timeline-bullet">${idx < activeStepIndex ? "✔" : idx + 1}</div>
               <div class="timeline-content">
                 <h4>${step.title}</h4>
-                <p>${step.desc}</p>
+                <p>${stepDesc}</p>
               </div>
             </div>
           `;
         }).join("");
-
-        let interactiveHtml = "";
-        // If arrived, customer can confirm arrival to complete the job
-        if (activeBooking.status === "arrived") {
-          interactiveHtml = `
-            <div class="tracking-interactive-box">
-              <p>🔔 <strong>Service Provider has arrived!</strong> Please confirm to close the service and view your digital receipt.</p>
-              <button class="btn btn-sm btn-primary pulse-glow" onclick="confirmArrival('${activeBooking.id}')" id="confirmArrivalBtn">Confirm Service Arrival</button>
-            </div>
-          `;
-        }
 
         trackerContainer.innerHTML = `
           <div style="margin-bottom: 1rem; border-bottom: 1px solid var(--slate-100); padding-bottom: 0.75rem;">
@@ -454,6 +575,14 @@
 
           ${interactiveHtml}
         `;
+      }
+
+      function payManpowerBill(bookingId) {
+        const ok = window.LocalHubStore.updateBookingStatus(bookingId, "paid");
+        if (ok) {
+          window.showToastNotification("Payment submitted! 30-second auto-confirmation timer started.");
+          renderActiveOrderTracking();
+        }
       }
 
       function confirmArrival(bookingId) {

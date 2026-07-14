@@ -221,6 +221,9 @@ const LocalHubStore = {
       ? Math.max(...bookings.map(b => parseInt(b.id.split("-")[1] || "1000"))) + 1 
       : 1001;
     
+    // Determine orderType: category "cleaning" is manpower, others are physical
+    const orderType = service.category === "cleaning" ? "manpower" : "physical";
+
     const newBooking = {
       id: `LH-${nextIdNum}`,
       customerName,
@@ -228,13 +231,16 @@ const LocalHubStore = {
       serviceId,
       serviceTitle: service.title,
       serviceCategory: service.category,
+      orderType,
       price: service.price,
       date,
       time,
       status: "pending",
       createdAt: new Date().toISOString(),
       rating: null,
-      reviewText: null
+      reviewText: null,
+      deliveredAt: null,
+      paidAt: null
     };
 
     bookings.push(newBooking);
@@ -247,6 +253,11 @@ const LocalHubStore = {
     const found = bookings.find(b => b.id === bookingId);
     if (found) {
       found.status = status;
+      if (status === "delivered") {
+        found.deliveredAt = Date.now();
+      } else if (status === "paid") {
+        found.paidAt = Date.now();
+      }
       this.saveBookings(bookings);
       return true;
     }
@@ -272,6 +283,12 @@ LocalHubStore.init();
 // 3. Shared Global DOM Controls
 document.addEventListener("DOMContentLoaded", () => {
   setupNavbarUI();
+});
+
+window.addEventListener("storage", (e) => {
+  if (e.key === "lh_current_user") {
+    setupNavbarUI();
+  }
 });
 
 function setupNavbarUI() {
