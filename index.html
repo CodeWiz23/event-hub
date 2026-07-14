@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LocalHub — Hyperlocal Home Service & Rental Marketplace</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar" id="mainNavbar">
+      <div class="navbar-container">
+        <a href="./index.html" class="logo" id="logoLink">
+          <div class="logo-icon">L</div>
+          <span class="logo-text">LocalHub</span>
+        </a>
+
+        <div class="nav-search-bar">
+          <form id="navbarSearchForm" onsubmit="handleNavbarSearch(event)">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="navbarSearchInput" placeholder="Search home services, car rentals..." />
+          </form>
+        </div>
+
+        <div class="nav-links" id="navAuthActions">
+          <!-- Populated by app.js -->
+          <a href="./auth.html?tab=login" class="nav-item">Sign In</a>
+          <a href="./auth.html?tab=register" class="btn btn-sm btn-primary">Join Marketplace</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+      <div class="hero-overlay"></div>
+      <div class="hero-container">
+        <h1>Find Trusted Local Services & <br><span>Rentals Instantly</span></h1>
+        <p>Your hyperlocal community hub for expert home decorations, professional deep cleaning sweepers, and premium car rentals. Verified providers, guaranteed service, upfront pricing.</p>
+        
+        <div class="hero-search-wrapper">
+          <div class="hero-search-field">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="heroSearchQuery" placeholder="What service or car rental do you need today?" />
+          </div>
+          <select id="heroSearchCategory" class="hero-search-select">
+            <option value="all">All Categories</option>
+            <option value="home-decor">Home Decoration</option>
+            <option value="cleaning">Professional Sweepers</option>
+            <option value="car-rentals">Car Rentals</option>
+          </select>
+          <button onclick="handleHeroSearch()" class="btn btn-primary" id="heroSearchSubmitBtn">Search</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Category Grid Section -->
+    <main class="section">
+      <div class="section-header">
+        <h2>Explore Handpicked Services</h2>
+        <p>Select a category to browse local certified providers, transparent price points, and verified user ratings.</p>
+      </div>
+
+      <div class="category-grid">
+        <!-- Category Card 1: Home Decoration -->
+        <article class="category-card" id="catHomeDecor">
+          <div class="category-img-container">
+            <div class="category-img-placeholder">🏡</div>
+            <span class="category-badge">Staging & Decor</span>
+          </div>
+          <div class="category-content">
+            <h3>Home Decoration</h3>
+            <p>From custom wall staging and holiday decorations to heavy-duty floating shelves setups. Transform your living spaces with local design artisans.</p>
+            <div class="category-footer">
+              <div class="category-price-info">
+                Prices start at<br><strong>$95</strong>
+              </div>
+              <a href="./customer.html?category=home-decor" class="btn btn-sm btn-secondary" id="viewHomeDecorBtn">Browse Decorators</a>
+            </div>
+          </div>
+        </article>
+
+        <!-- Category Card 2: Professional Cleaners -->
+        <article class="category-card" id="catCleaning">
+          <div class="category-img-container">
+            <div class="category-img-placeholder">🧹</div>
+            <span class="category-badge">Deep Clean</span>
+          </div>
+          <div class="category-content">
+            <h3>Sweepers & Cleaners</h3>
+            <p>Certified deep-home sterilization, professional high-pressure carpet wash, and intensive kitchen sanitization. Let local sweepers bring back the shine.</p>
+            <div class="category-footer">
+              <div class="category-price-info">
+                Prices start at<br><strong>$80</strong>
+              </div>
+              <a href="./customer.html?category=cleaning" class="btn btn-sm btn-secondary" id="viewCleaningBtn">Browse Sweepers</a>
+            </div>
+          </div>
+        </article>
+
+        <!-- Category Card 3: Car Rentals -->
+        <article class="category-card" id="catRentals">
+          <div class="category-img-container">
+            <div class="category-img-placeholder">🏎️</div>
+            <span class="category-badge">Instant Rental</span>
+          </div>
+          <div class="category-content">
+            <h3>Premium Car Rentals</h3>
+            <p>Experience the road with a fully-charged Tesla Model 3, a rugged mountain-ready Ford Bronco, or an American V8 Mustang Convertible.</p>
+            <div class="category-footer">
+              <div class="category-price-info">
+                Prices start at<br><strong>$85/day</strong>
+              </div>
+              <a href="./customer.html?category=car-rentals" class="btn btn-sm btn-secondary" id="viewRentalsBtn">Browse Fleet</a>
+            </div>
+          </div>
+        </article>
+      </div>
+    </main>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials section" id="testimonialsSec">
+      <div class="section-header">
+        <h2>What Our Neighbors Say</h2>
+        <p>Read honest reviews from customers who found trusted help in their immediate neighborhoods.</p>
+      </div>
+
+      <div class="testimonial-grid">
+        <!-- Testimonial 1 -->
+        <div class="testimonial-card">
+          <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+          <p class="testimonial-text">"The deep home cleaning was pristine! The sweeper arrived precisely on time and completed the entire house scrubbing with eco-friendly sanitizers. Absolute lifesaver."</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar" style="background-color: var(--emerald-600)">MH</div>
+            <div class="testimonial-info">
+              <h4>Margaret Hayes</h4>
+              <span>Greenwood District</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testimonial 2 -->
+        <div class="testimonial-card">
+          <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+          <p class="testimonial-text">"Renting the Tesla Model 3 was seamless. Dynamic booking state update kept me informed when the car was ready. Best vehicle experience I've had in years!"</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar" style="background-color: var(--slate-700)">TL</div>
+            <div class="testimonial-info">
+              <h4>Terrance Logan</h4>
+              <span>Silverwood Heights</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testimonial 3 -->
+        <div class="testimonial-card">
+          <div class="testimonial-stars">⭐⭐⭐⭐⭐</div>
+          <p class="testimonial-text">"The floating shelves installation was robust and flawless. The decorator tested the plaster wall strength and mounted them cleanly in under an hour. Highly recommend!"</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar" style="background-color: var(--amber-600)">RK</div>
+            <div class="testimonial-info">
+              <h4>Rachel Kim</h4>
+              <span>Oakridge Gardens</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-container">
+        <div class="footer-brand">
+          <h3>LocalHub</h3>
+          <p>LocalHub connects neighbors with premium, certified service providers and car rental owners directly in their vicinity. Built to foster community-driven hyperlocal commerce.</p>
+        </div>
+        <div class="footer-links">
+          <h4>Marketplace</h4>
+          <ul>
+            <li><a href="./customer.html?category=home-decor">Home Decoration</a></li>
+            <li><a href="./customer.html?category=cleaning">Sweeping & Cleaning</a></li>
+            <li><a href="./customer.html?category=car-rentals">Premium Car Fleet</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h4>Partner Program</h4>
+          <ul>
+            <li><a href="./auth.html?tab=register&role=provider">Become a Service Provider</a></li>
+            <li><a href="./auth.html?tab=register&role=provider">Rent Out Your Vehicle</a></li>
+            <li><a href="./provider.html">Service Provider Center</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 LocalHub Technologies Inc. All rights reserved.</p>
+        <p>Built as a complete production-grade hyperlocal showcase.</p>
+      </div>
+    </footer>
+
+    <!-- Core Script Imports -->
+    <script src="./app.js"></script>
+    <script>
+      function handleHeroSearch() {
+        const query = document.getElementById("heroSearchQuery").value.trim();
+        const category = document.getElementById("heroSearchCategory").value;
+        let url = "./customer.html";
+        const params = [];
+        if (query) params.push("q=" + encodeURIComponent(query));
+        if (category !== "all") params.push("category=" + category);
+        if (params.length > 0) {
+          url += "?" + params.join("&");
+        }
+        window.location.href = url;
+      }
+
+      function handleNavbarSearch(e) {
+        e.preventDefault();
+        const query = document.getElementById("navbarSearchInput").value.trim();
+        if (query) {
+          window.location.href = "./customer.html?q=" + encodeURIComponent(query);
+        }
+      }
+    </script>
+  </body>
+</html>

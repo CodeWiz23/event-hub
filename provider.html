@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Service Provider Center — LocalHub</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Navbar -->
+    <nav class="navbar">
+      <div class="navbar-container">
+        <a href="./index.html" class="logo">
+          <div class="logo-icon">L</div>
+          <span class="logo-text">LocalHub</span>
+        </a>
+        <div class="nav-links" id="navAuthActions">
+          <!-- Populated by app.js -->
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="dashboard-layout">
+      <!-- Left Column: Incoming Requests & Active Job -->
+      <section class="dashboard-main-col">
+        <div class="dashboard-title-bar">
+          <div>
+            <h1 id="providerWelcomeTitle">Provider Management Hub</h1>
+            <p style="color: var(--slate-500); font-size: 0.9rem;">Review incoming bookings, update job locations, and monitor your local service earnings.</p>
+          </div>
+          <div class="user-role-badge alert alert-info" style="margin-bottom: 0; padding: 0.35rem 0.75rem; font-weight: 600; font-size: 0.8rem; background-color: var(--slate-100); color: var(--slate-700); border-color: var(--slate-200);">
+            Certified Provider Portal
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem;"></div>
+
+        <!-- Section 1: Active Job Action Panel -->
+        <div class="dashboard-panel" id="activeJobPanel">
+          <div class="panel-title">
+            <span>⚡ Currently Engaged Job</span>
+            <span id="activeJobBadge" class="request-meta-badge" style="background-color: var(--emerald-500); color: var(--slate-950); display: none;">IN PROGRESS</span>
+          </div>
+          <div id="activeJobContainer">
+            <!-- Rendered by JS -->
+            <div class="empty-state">
+              <p>You have no active jobs in progress.</p>
+              <span style="font-size: 0.75rem; color: var(--slate-400);">Accept an incoming request from the panel below to get started!</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Incoming Requests -->
+        <div class="dashboard-panel" id="incomingPanel">
+          <div class="panel-title">
+            <span>📥 Incoming Service Requests</span>
+            <span id="incomingRequestsCountBadge" class="request-meta-badge" style="display: none;">0 New</span>
+          </div>
+          <div class="requests-list" id="incomingRequestsList">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Earnings & Stats Summary -->
+      <aside class="dashboard-side-col">
+        <!-- Panel 1: Earnings Tracker -->
+        <div class="dashboard-panel" id="earningsPanel">
+          <div class="panel-title">
+            <span>📊 Marketplace Earnings</span>
+          </div>
+          
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <span>Jobs Closed</span>
+              <h3 id="completedJobsMetric">0</h3>
+            </div>
+            <div class="metric-card revenue">
+              <span>Total Revenue</span>
+              <h3 id="totalRevenueMetric">$0</h3>
+            </div>
+          </div>
+
+          <div style="font-size: 0.8rem; color: var(--slate-500); border-top: 1px solid var(--slate-100); padding-top: 0.75rem;">
+            <span>Platform service fee of $5.00 is subtracted at payout. Displaying gross earnings.</span>
+          </div>
+        </div>
+
+        <!-- Panel 2: Neighborhood Activity Feedback -->
+        <div class="dashboard-panel" id="feedbackActivityPanel">
+          <div class="panel-title">
+            <span>💬 Recent Reviews & Feedback</span>
+          </div>
+          <div class="orders-list" id="providerFeedbackList">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-bottom" style="margin-top: 0; padding-top: 0; border: none;">
+        <p>&copy; 2026 LocalHub Technologies Inc.</p>
+        <p>Provider Dashboard synced reactively in real time.</p>
+      </div>
+    </footer>
+
+    <!-- Core Script Imports -->
+    <script src="./app.js"></script>
+    <script>
+      // Security Check & Bootstrapper
+      document.addEventListener("DOMContentLoaded", () => {
+        const user = window.LocalHubStore.getCurrentUser();
+        if (!user) {
+          window.location.href = "./auth.html?tab=login";
+          return;
+        }
+
+        if (user.role !== "provider") {
+          window.showToastNotification("Redirecting to your customer panel...", "info");
+          setTimeout(() => {
+            window.location.href = "./customer.html";
+          }, 1500);
+          return;
+        }
+
+        // Set name welcome message
+        document.getElementById("providerWelcomeTitle").innerText = `Hello, ${user.name}`;
+
+        renderDashboard();
+
+        // Sync reactively every 3 seconds
+        setInterval(() => {
+          renderDashboard();
+        }, 3000);
+      });
+
+      function renderDashboard() {
+        renderIncomingRequests();
+        renderActiveJob();
+        renderEarningsAndReviews();
+      }
+
+      // Incoming Requests Renderer
+      function renderIncomingRequests() {
+        const list = document.getElementById("incomingRequestsList");
+        const countBadge = document.getElementById("incomingRequestsCountBadge");
+        const bookings = window.LocalHubStore.getBookings();
+
+        // Incoming bookings are those with "pending" status
+        const pendingBookings = bookings.filter(b => b.status === "pending");
+
+        if (pendingBookings.length === 0) {
+          countBadge.style.display = "none";
+          list.innerHTML = `
+            <div class="empty-state">
+              <p>No new customer requests at this time.</p>
+              <span style="font-size: 0.75rem; color: var(--slate-400);">New customer requests will show up here reactively.</span>
+            </div>
+          `;
+          return;
+        }
+
+        countBadge.innerText = `${pendingBookings.length} New`;
+        countBadge.style.display = "inline-block";
+
+        list.innerHTML = pendingBookings.map(b => `
+          <div class="request-card" id="req-${b.id}">
+            <div class="request-header">
+              <div class="request-customer-info">
+                <h4>${b.customerName}</h4>
+                <span>Requested via ${b.customerEmail}</span>
+              </div>
+              <span class="request-meta-badge">${b.id}</span>
+            </div>
+            <div class="request-details">
+              Service: <strong>${b.serviceTitle}</strong><br>
+              Scheduled Date: <strong>${b.date}</strong><br>
+              Preferred Time Slot: <strong>${b.time} Slot</strong>
+            </div>
+            <div class="request-actions">
+              <button class="btn btn-sm btn-danger" onclick="declineRequest('${b.id}')">Decline</button>
+              <button class="btn btn-sm btn-primary pulse-glow" onclick="acceptRequest('${b.id}')">Accept Job</button>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      function acceptRequest(bookingId) {
+        const success = window.LocalHubStore.updateBookingStatus(bookingId, "accepted");
+        if (success) {
+          window.showToastNotification(`You have accepted Job ${bookingId}! Current state updated.`);
+          renderDashboard();
+        }
+      }
+
+      function declineRequest(bookingId) {
+        const success = window.LocalHubStore.updateBookingStatus(bookingId, "declined");
+        if (success) {
+          window.showToastNotification(`Request ${bookingId} has been declined.`, "info");
+          renderDashboard();
+        }
+      }
+
+      // Active Job Section Renderer
+      function renderActiveJob() {
+        const activeContainer = document.getElementById("activeJobContainer");
+        const activeJobBadge = document.getElementById("activeJobBadge");
+        const bookings = window.LocalHubStore.getBookings();
+
+        // Engaged active job has a state of accepted, dispatched, or arrived
+        const activeJob = bookings.find(b => 
+          b.status === "accepted" || b.status === "dispatched" || b.status === "arrived"
+        );
+
+        if (!activeJob) {
+          activeJobBadge.style.display = "none";
+          activeContainer.innerHTML = `
+            <div class="empty-state">
+              <p>You have no active engaged jobs.</p>
+              <span style="font-size: 0.75rem; color: var(--slate-400);">Accept a customer request from the panel below to begin earning!</span>
+            </div>
+          `;
+          return;
+        }
+
+        activeJobBadge.style.display = "inline-block";
+
+        let toggleBtnText = "";
+        let toggleActionStatus = "";
+        let statusDescriptionLabel = "";
+
+        if (activeJob.status === "accepted") {
+          toggleBtnText = "Mark as Dispatched";
+          toggleActionStatus = "dispatched";
+          statusDescriptionLabel = "Status: <strong>Accepted</strong>. Customer has been notified. Ready to drive/dispatch?";
+        } else if (activeJob.status === "dispatched") {
+          toggleBtnText = "Mark as Arrived";
+          toggleActionStatus = "arrived";
+          statusDescriptionLabel = "Status: <strong>Dispatched</strong>. You are currently driving to customer's location.";
+        } else if (activeJob.status === "arrived") {
+          toggleBtnText = "Mark as Completed";
+          toggleActionStatus = "completed";
+          statusDescriptionLabel = "Status: <strong>Arrived</strong>. You have arrived at location! Complete job when finished.";
+        }
+
+        activeContainer.innerHTML = `
+          <div style="background-color: var(--slate-50); border: 1px solid var(--slate-200); border-radius: var(--radius-md); padding: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+              <div>
+                <h4 style="font-size:1.1rem; font-weight:700;">${activeJob.serviceTitle}</h4>
+                <span style="font-size:0.8rem; color:var(--slate-500);">Customer: ${activeJob.customerName} (${activeJob.customerEmail})</span>
+              </div>
+              <div class="catalog-item-price" style="font-size:1.25rem;">$${activeJob.price}</div>
+            </div>
+            
+            <p style="font-size: 0.9rem; color: var(--slate-600); margin-bottom: 1.25rem;">
+              ${statusDescriptionLabel}
+            </p>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+              <button class="btn btn-primary pulse-glow" onclick="progressJobState('${activeJob.id}', '${toggleActionStatus}')" id="progressJobBtn">
+                ${toggleBtnText}
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      function progressJobState(bookingId, nextStatus) {
+        const success = window.LocalHubStore.updateBookingStatus(bookingId, nextStatus);
+        if (success) {
+          window.showToastNotification(`Status for Job ${bookingId} progressed to: ${nextStatus}!`);
+          renderDashboard();
+        }
+      }
+
+      // Earnings & Feedbacks Renderer
+      function renderEarningsAndReviews() {
+        const bookings = window.LocalHubStore.getBookings();
+
+        // Calculate closed jobs and revenue
+        const completedJobs = bookings.filter(b => b.status === "completed");
+        const totalRevenue = completedJobs.reduce((sum, item) => sum + item.price, 0);
+
+        document.getElementById("completedJobsMetric").innerText = completedJobs.length;
+        document.getElementById("totalRevenueMetric").innerText = `$${totalRevenue}`;
+
+        // Feedback List rendering
+        const feedbackList = document.getElementById("providerFeedbackList");
+        const ratedBookings = completedJobs.filter(b => b.rating !== null);
+
+        if (ratedBookings.length === 0) {
+          feedbackList.innerHTML = `
+            <div class="empty-state" style="padding: 1.5rem 1rem;">
+              <p>No customer reviews received yet.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Render ratings
+        feedbackList.innerHTML = ratedBookings.map(b => {
+          let starRatingHtml = "★".repeat(b.rating) + "☆".repeat(5 - b.rating);
+          return `
+            <div class="order-receipt-card" style="cursor: default; flex-direction: column; align-items: flex-start; gap: 0.5rem;" id="review-card-${b.id}">
+              <div style="display: flex; justify-content: space-between; width: 100%;">
+                <strong>${b.customerName}</strong>
+                <span style="color: var(--amber-600); font-weight: bold; font-size: 0.85rem;">${starRatingHtml}</span>
+              </div>
+              <p style="font-size: 0.8rem; color: var(--slate-600); font-style: italic; margin-bottom: 0.25rem;">
+                "${b.reviewText || "No written comments left."}"
+              </p>
+              <span style="font-size:0.7rem; color:var(--slate-400)">Service: ${b.serviceTitle} • ${b.date}</span>
+            </div>
+          `;
+        }).join("");
+      }
+    </script>
+  </body>
+</html>

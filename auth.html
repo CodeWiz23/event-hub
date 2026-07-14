@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In / Register — LocalHub</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .demo-panel {
+        background-color: var(--slate-100);
+        border: 1px solid var(--slate-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin-top: 1.5rem;
+      }
+      .demo-panel h4 {
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem;
+        color: var(--slate-700);
+      }
+      .demo-accounts {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .demo-btn {
+        background-color: var(--white);
+        border: 1px solid var(--slate-300);
+        padding: 0.5rem;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: var(--transition-fast);
+      }
+      .demo-btn:hover {
+        border-color: var(--emerald-500);
+        background-color: var(--emerald-50);
+      }
+      .demo-btn span.role-tag {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        background-color: var(--slate-200);
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        color: var(--slate-700);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navbar -->
+    <nav class="navbar">
+      <div class="navbar-container">
+        <a href="./index.html" class="logo">
+          <div class="logo-icon">L</div>
+          <span class="logo-text">LocalHub</span>
+        </a>
+        <div class="nav-links">
+          <a href="./index.html" class="nav-item">Back to Home</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Auth Frame Wrapper -->
+    <main class="auth-wrapper">
+      <div class="auth-card" id="authCard">
+        <!-- Dual Tab Headers -->
+        <div class="auth-tabs" id="authTabsList">
+          <div class="auth-tab active" id="tabLoginBtn" onclick="switchAuthTab('login')">Sign In</div>
+          <div class="auth-tab" id="tabRegisterBtn" onclick="switchAuthTab('register')">Create Account</div>
+        </div>
+
+        <div class="auth-body">
+          <div class="auth-header">
+            <h2 id="authTitle">Welcome Back</h2>
+            <p id="authSubtitle">Enter your neighborhood credentials to proceed.</p>
+          </div>
+
+          <!-- Notification Feedback Bar -->
+          <div id="authAlert" class="alert alert-info" style="display: none;"></div>
+
+          <!-- Main Input Form -->
+          <form id="authForm" onsubmit="handleAuthSubmit(event)">
+            <!-- Name Input (Hidden in Login Mode) -->
+            <div class="form-group" id="groupName" style="display: none;">
+              <label for="inputName">Full Name</label>
+              <input type="text" id="inputName" class="form-control" placeholder="Charlie Customer" />
+              <div class="invalid-feedback" id="feedbackName">Please enter your name.</div>
+            </div>
+
+            <!-- Email Input -->
+            <div class="form-group">
+              <label for="inputEmail">Email Address</label>
+              <input type="email" id="inputEmail" class="form-control" placeholder="customer@localhub.test" required />
+              <div class="invalid-feedback" id="feedbackEmail">Please provide a valid email structure.</div>
+            </div>
+
+            <!-- Password Input -->
+            <div class="form-group">
+              <label for="inputPassword">Password</label>
+              <input type="password" id="inputPassword" class="form-control" placeholder="••••••••" required />
+              <div class="invalid-feedback" id="feedbackPassword">Password is required.</div>
+            </div>
+
+            <!-- Role Dropdown (Hidden in Login Mode) -->
+            <div class="form-group" id="groupRole" style="display: none;">
+              <label for="selectRole">I want to register as a:</label>
+              <select id="selectRole" class="form-control">
+                <option value="customer">Customer (Buy services / Rent cars)</option>
+                <option value="provider">Service Provider (Fulfill jobs / Lease cars)</option>
+              </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-full" id="authSubmitBtn" style="width: 100%; margin-top: 1rem;">Sign In</button>
+          </form>
+
+          <!-- Quick Test Accounts Panel -->
+          <div class="demo-panel">
+            <h4>⚡ Quick Test Accounts</h4>
+            <div class="demo-accounts">
+              <button class="demo-btn" onclick="applyDemoAccount('customer@localhub.test', 'password')">
+                <div>
+                  <strong>Charlie Customer</strong><br>
+                  <span style="font-size: 0.75rem; color: var(--slate-500)">customer@localhub.test</span>
+                </div>
+                <span class="role-tag">Customer</span>
+              </button>
+              <button class="demo-btn" onclick="applyDemoAccount('provider@localhub.test', 'password')">
+                <div>
+                  <strong>Dave Provider</strong><br>
+                  <span style="font-size: 0.75rem; color: var(--slate-500)">provider@localhub.test</span>
+                </div>
+                <span class="role-tag">Provider</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- Core Script Imports -->
+    <script src="./app.js"></script>
+    <script>
+      let currentMode = "login"; // "login" or "register"
+
+      document.addEventListener("DOMContentLoaded", () => {
+        // Parse tab parameter from URL query string if present
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get("tab");
+        const roleParam = params.get("role");
+
+        if (tabParam === "register") {
+          switchAuthTab("register");
+        } else {
+          switchAuthTab("login");
+        }
+
+        if (roleParam === "provider" && document.getElementById("selectRole")) {
+          document.getElementById("selectRole").value = "provider";
+        }
+      });
+
+      function switchAuthTab(mode) {
+        currentMode = mode;
+        const tabLogin = document.getElementById("tabLoginBtn");
+        const tabRegister = document.getElementById("tabRegisterBtn");
+        const groupName = document.getElementById("groupName");
+        const groupRole = document.getElementById("groupRole");
+        const authTitle = document.getElementById("authTitle");
+        const authSubtitle = document.getElementById("authSubtitle");
+        const authSubmitBtn = document.getElementById("authSubmitBtn");
+        const authAlert = document.getElementById("authAlert");
+
+        authAlert.style.display = "none";
+
+        if (mode === "login") {
+          tabLogin.classList.add("active");
+          tabRegister.classList.remove("active");
+          groupName.style.display = "none";
+          groupRole.style.display = "none";
+          authTitle.innerText = "Welcome Back";
+          authSubtitle.innerText = "Enter your neighborhood credentials to proceed.";
+          authSubmitBtn.innerText = "Sign In";
+        } else {
+          tabLogin.classList.remove("active");
+          tabRegister.classList.add("active");
+          groupName.style.display = "block";
+          groupRole.style.display = "block";
+          authTitle.innerText = "Create Account";
+          authSubtitle.innerText = "Join our hyperlocal marketplace community today.";
+          authSubmitBtn.innerText = "Register Account";
+        }
+      }
+
+      function applyDemoAccount(email, password) {
+        document.getElementById("inputEmail").value = email;
+        document.getElementById("inputPassword").value = password;
+        switchAuthTab("login");
+        showToastNotification("Demo account loaded! Click Sign In below.", "info");
+      }
+
+      function handleAuthSubmit(e) {
+        e.preventDefault();
+        
+        const email = document.getElementById("inputEmail").value.trim();
+        const password = document.getElementById("inputPassword").value;
+        const name = document.getElementById("inputName") ? document.getElementById("inputName").value.trim() : "";
+        const role = document.getElementById("selectRole") ? document.getElementById("selectRole").value : "customer";
+        
+        const authAlert = document.getElementById("authAlert");
+        authAlert.style.display = "none";
+
+        // Simple validation checks
+        if (!email.includes("@")) {
+          document.getElementById("feedbackEmail").style.display = "block";
+          return;
+        } else {
+          document.getElementById("feedbackEmail").style.display = "none";
+        }
+
+        if (password.length < 4) {
+          document.getElementById("feedbackPassword").style.display = "block";
+          document.getElementById("feedbackPassword").innerText = "Password must be at least 4 characters.";
+          return;
+        } else {
+          document.getElementById("feedbackPassword").style.display = "none";
+        }
+
+        if (currentMode === "register") {
+          if (!name) {
+            document.getElementById("feedbackName").style.display = "block";
+            return;
+          } else {
+            document.getElementById("feedbackName").style.display = "none";
+          }
+
+          // Register in store
+          const regRes = window.LocalHubStore.registerUser(name, email, password, role);
+          if (regRes.success) {
+            showToastNotification(`Registered successfully! Welcome, ${name}!`);
+            setTimeout(() => {
+              window.location.href = role === "provider" ? "./provider.html" : "./customer.html";
+            }, 1000);
+          } else {
+            authAlert.innerText = regRes.message;
+            authAlert.className = "alert alert-danger";
+            authAlert.style.display = "flex";
+            authAlert.style.backgroundColor = "var(--red-50)";
+            authAlert.style.color = "var(--red-600)";
+            authAlert.style.borderColor = "var(--red-200)";
+          }
+        } else {
+          // Login in store
+          const loginRes = window.LocalHubStore.loginUser(email, password);
+          if (loginRes.success) {
+            showToastNotification(`Logged in successfully! Welcome back, ${loginRes.user.name}.`);
+            setTimeout(() => {
+              window.location.href = loginRes.user.role === "provider" ? "./provider.html" : "./customer.html";
+            }, 1000);
+          } else {
+            authAlert.innerText = loginRes.message;
+            authAlert.className = "alert alert-danger";
+            authAlert.style.display = "flex";
+            authAlert.style.backgroundColor = "var(--red-50)";
+            authAlert.style.color = "var(--red-600)";
+            authAlert.style.borderColor = "var(--red-200)";
+          }
+        }
+      }
+    </script>
+  </body>
+</html>

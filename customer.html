@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Customer Dashboard — LocalHub</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Navbar -->
+    <nav class="navbar">
+      <div class="navbar-container">
+        <a href="./index.html" class="logo">
+          <div class="logo-icon">L</div>
+          <span class="logo-text">LocalHub</span>
+        </a>
+        <div class="nav-links" id="navAuthActions">
+          <!-- Populated by app.js -->
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="dashboard-layout">
+      <!-- Left Column: Service Catalog & Actions -->
+      <section class="dashboard-main-col">
+        <div class="dashboard-title-bar">
+          <div>
+            <h1 id="customerWelcomeTitle">Hello, Customer</h1>
+            <p style="color: var(--slate-500); font-size: 0.9rem;">Find, book, and review local home services & premium car rentals in your area.</p>
+          </div>
+          <div class="user-role-badge alert alert-success" style="margin-bottom: 0; padding: 0.35rem 0.75rem; font-weight: 600; font-size: 0.8rem; background-color: var(--emerald-50); color: var(--emerald-700); border-color: var(--emerald-200);">
+            Active Customer Profile
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem;"></div>
+
+        <!-- Service Catalog Section -->
+        <div class="dashboard-panel" id="catalogPanel">
+          <div class="panel-title">
+            <span>🛠️ Marketplace Catalog</span>
+            <div style="position: relative; max-width: 250px;">
+              <input type="text" id="catalogSearch" oninput="filterCatalog()" placeholder="Search catalog..." style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: var(--radius-sm); border: 1px solid var(--slate-200); width: 100%;" />
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="catalog-filters">
+            <button class="filter-btn active" id="filter-all" onclick="setCatalogCategory('all')">All Options</button>
+            <button class="filter-btn" id="filter-home-decor" onclick="setCatalogCategory('home-decor')">Home Decoration</button>
+            <button class="filter-btn" id="filter-cleaning" onclick="setCatalogCategory('cleaning')">Professional Sweepers</button>
+            <button class="filter-btn" id="filter-car-rentals" onclick="setCatalogCategory('car-rentals')">Car Rentals</button>
+          </div>
+
+          <!-- Services Grid -->
+          <div class="services-catalog-grid" id="servicesGrid">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Active Tracking, Reviews, Bills -->
+      <aside class="dashboard-side-col">
+        <!-- Panel 1: Active Order Tracking Timeline -->
+        <div class="dashboard-panel" id="trackingPanel">
+          <div class="panel-title">
+            <span>📦 Order Tracker</span>
+            <span id="activeOrderBadge" class="request-meta-badge" style="display: none;">Active</span>
+          </div>
+
+          <div id="trackingContent">
+            <!-- Dynamically rendered active order or empty state -->
+            <div class="empty-state">
+              <p>No active jobs found.</p>
+              <span style="font-size: 0.75rem; color: var(--slate-400);">Choose a service from the catalog to book one!</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2: Review/Feedback Section (Shows conditionally) -->
+        <div class="dashboard-panel" id="reviewPanel" style="display: none;">
+          <div class="panel-title">
+            <span>⭐ Share Your Feedback</span>
+          </div>
+          <div>
+            <p style="font-size: 0.85rem; color: var(--slate-600); margin-bottom: 0.75rem;">Your feedback helps local certified providers improve their services.</p>
+            <div class="stars-selector" id="ratingStarsSelector">
+              <span class="star-input" data-rating="1" onclick="setStarRating(1)">★</span>
+              <span class="star-input" data-rating="2" onclick="setStarRating(2)">★</span>
+              <span class="star-input" data-rating="3" onclick="setStarRating(3)">★</span>
+              <span class="star-input" data-rating="4" onclick="setStarRating(4)">★</span>
+              <span class="star-input" data-rating="5" onclick="setStarRating(5)">★</span>
+            </div>
+            <div class="form-group">
+              <label for="reviewComment">Review comments</label>
+              <textarea id="reviewComment" class="form-control" rows="3" placeholder="Tell us how the service provider or vehicle was..."></textarea>
+            </div>
+            <button class="btn btn-primary btn-sm" id="submitReviewBtn" onclick="submitActiveReview()" style="width: 100%;">Submit Feedback</button>
+          </div>
+        </div>
+
+        <!-- Panel 3: Digital Bills & Receipts -->
+        <div class="dashboard-panel" id="billsPanel">
+          <div class="panel-title">
+            <span>🧾 Past Bills & Receipts</span>
+          </div>
+          <div class="orders-list" id="billsList">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Modal 1: Booking Confirmation Modal -->
+    <div class="modal-overlay" id="bookingModalOverlay">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="modalServiceTitle">Book Service</h3>
+          <button class="modal-close" onclick="closeBookingModal()">&times;</button>
+        </div>
+        <form id="bookingForm" onsubmit="handleConfirmBooking(event)">
+          <div class="modal-body">
+            <input type="hidden" id="bookingServiceId" />
+            
+            <div id="bookingServiceSummary" class="alert alert-info" style="margin-bottom: 1.25rem;">
+              <!-- Price breakdown description -->
+            </div>
+
+            <div class="form-group">
+              <label for="bookingDate">Preferred Service Date</label>
+              <input type="date" id="bookingDate" class="form-control" required />
+              <div class="invalid-feedback" id="bookingDateError">Date cannot be in the past.</div>
+            </div>
+
+            <div class="form-group">
+              <label for="bookingTime">Preferred Time Slot</label>
+              <select id="bookingTime" class="form-control" required>
+                <option value="09:00">09:00 AM (Morning)</option>
+                <option value="11:00">11:00 AM (Morning)</option>
+                <option value="13:00">01:00 PM (Afternoon)</option>
+                <option value="15:00">03:00 PM (Afternoon)</option>
+                <option value="17:00">05:00 PM (Evening)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="bookingCustomerName">Full Name</label>
+              <input type="text" id="bookingCustomerName" class="form-control" readonly />
+            </div>
+
+            <div class="form-group">
+              <label for="bookingCustomerEmail">Email Address</label>
+              <input type="email" id="bookingCustomerEmail" class="form-control" readonly />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="closeBookingModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="confirmOrderBtn">Confirm Order</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal 2: Digital Bill Receipt Modal -->
+    <div class="modal-overlay" id="receiptModalOverlay">
+      <div class="modal" style="max-width: 440px;">
+        <div class="modal-header">
+          <h3>Printable Digital Receipt</h3>
+          <button class="modal-close" onclick="closeReceiptModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="receipt-paper" id="receiptPaperContent">
+            <!-- Dynamic receipts injected here -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeReceiptModal()">Close</button>
+          <button type="button" class="btn btn-primary" onclick="printReceiptPaper()">🖨️ Print Receipt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-bottom" style="margin-top: 0; padding-top: 0; border: none;">
+        <p>&copy; 2026 LocalHub Technologies Inc.</p>
+        <p>Dynamic Marketplace client preview synced via localStorage.</p>
+      </div>
+    </footer>
+
+    <!-- Core Script Imports -->
+    <script src="./app.js"></script>
+    <script>
+      let activeCategory = "all";
+      let activeSelectedRating = 5;
+      let activeReviewBookingId = null;
+
+      // Security check and bootloader
+      document.addEventListener("DOMContentLoaded", () => {
+        const user = window.LocalHubStore.getCurrentUser();
+        if (!user) {
+          window.location.href = "./auth.html?tab=login";
+          return;
+        }
+
+        if (user.role !== "customer") {
+          window.showToastNotification("Redirecting you to the service provider hub...", "info");
+          setTimeout(() => {
+            window.location.href = "./provider.html";
+          }, 1500);
+          return;
+        }
+
+        // Setup Welcome Heading
+        document.getElementById("customerWelcomeTitle").innerText = `Welcome, ${user.name}`;
+
+        // Parse query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const catParam = urlParams.get("category");
+        const qParam = urlParams.get("q");
+
+        if (catParam) {
+          activeCategory = catParam;
+        }
+
+        if (qParam) {
+          document.getElementById("catalogSearch").value = qParam;
+        }
+
+        renderCatalog();
+        renderActiveOrderTracking();
+        renderBillsHistory();
+
+        // Setup timer to refresh data reactively every 3 seconds to sync changes with the provider dashboard tab
+        setInterval(() => {
+          renderActiveOrderTracking();
+          renderBillsHistory();
+        }, 3000);
+      });
+
+      // Catalog rendering with search & filters
+      function renderCatalog() {
+        const grid = document.getElementById("servicesGrid");
+        const services = window.LocalHubStore.getServices();
+        const query = document.getElementById("catalogSearch").value.toLowerCase().trim();
+
+        // Update active filter button class
+        document.querySelectorAll(".filter-btn").forEach(btn => {
+          btn.classList.remove("active");
+        });
+        const activeBtn = document.getElementById(`filter-${activeCategory}`);
+        if (activeBtn) activeBtn.classList.add("active");
+
+        let filtered = services;
+        if (activeCategory !== "all") {
+          filtered = filtered.filter(s => s.category === activeCategory);
+        }
+
+        if (query) {
+          filtered = filtered.filter(s => 
+            s.title.toLowerCase().includes(query) || 
+            s.description.toLowerCase().includes(query) || 
+            s.categoryLabel.toLowerCase().includes(query)
+          );
+        }
+
+        if (filtered.length === 0) {
+          grid.innerHTML = `
+            <div class="empty-state" style="grid-column: 1 / -1;">
+              <p>No matching service options found.</p>
+              <span style="font-size: 0.8rem; color: var(--slate-400);">Try searching with different keywords.</span>
+            </div>
+          `;
+          return;
+        }
+
+        grid.innerHTML = filtered.map(s => `
+          <div class="catalog-item-card" id="card-${s.id}">
+            <div>
+              <div class="catalog-item-header">
+                <h4>${s.title}</h4>
+                <span class="catalog-item-tag">${s.categoryLabel}</span>
+              </div>
+              <p class="catalog-item-desc">${s.description}</p>
+            </div>
+            <div class="catalog-item-footer">
+              <div class="catalog-item-price">$${s.price}<span style="font-size:0.75rem; font-weight:normal; color:var(--slate-500);"> / ${s.unit}</span></div>
+              <button class="btn btn-sm btn-primary" onclick="openBookingModal('${s.id}')">Book Now</button>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      function setCatalogCategory(cat) {
+        activeCategory = cat;
+        renderCatalog();
+      }
+
+      function filterCatalog() {
+        renderCatalog();
+      }
+
+      // Booking modal controls
+      function openBookingModal(serviceId) {
+        const user = window.LocalHubStore.getCurrentUser();
+        const services = window.LocalHubStore.getServices();
+        const service = services.find(s => s.id === serviceId);
+
+        if (!service) return;
+
+        document.getElementById("bookingServiceId").value = service.id;
+        document.getElementById("modalServiceTitle").innerText = `Book ${service.title}`;
+        document.getElementById("bookingServiceSummary").innerHTML = `
+          <span>Category: <strong>${service.categoryLabel}</strong></span><br>
+          <span>Standard rate: <strong>$${service.price} per ${service.unit}</strong></span>
+        `;
+        
+        // Setup Date picker validation to prevent selecting past dates
+        const dateInput = document.getElementById("bookingDate");
+        const todayStr = new Date().toISOString().split("T")[0];
+        dateInput.min = todayStr;
+        dateInput.value = todayStr;
+
+        // Pre-fill user data
+        document.getElementById("bookingCustomerName").value = user.name;
+        document.getElementById("bookingCustomerEmail").value = user.email;
+
+        document.getElementById("bookingModalOverlay").classList.add("active");
+      }
+
+      function closeBookingModal() {
+        document.getElementById("bookingModalOverlay").classList.remove("active");
+        document.getElementById("bookingDateError").style.display = "none";
+      }
+
+      function handleConfirmBooking(e) {
+        e.preventDefault();
+        
+        const serviceId = document.getElementById("bookingServiceId").value;
+        const dateStr = document.getElementById("bookingDate").value;
+        const timeStr = document.getElementById("bookingTime").value;
+        const user = window.LocalHubStore.getCurrentUser();
+
+        // Validation: Ensure date is not in the past
+        const todayStr = new Date().toISOString().split("T")[0];
+        if (dateStr < todayStr) {
+          document.getElementById("bookingDateError").style.display = "block";
+          return;
+        } else {
+          document.getElementById("bookingDateError").style.display = "none";
+        }
+
+        const newBooking = window.LocalHubStore.createBooking(
+          user.name,
+          user.email,
+          serviceId,
+          dateStr,
+          timeStr
+        );
+
+        if (newBooking) {
+          window.showToastNotification(`Order ${newBooking.id} placed! Waiting for provider acceptance.`);
+          closeBookingModal();
+          renderActiveOrderTracking();
+        } else {
+          window.showToastNotification("Failed to create booking. Please try again.", "danger");
+        }
+      }
+
+      // Order Tracker Render
+      function renderActiveOrderTracking() {
+        const trackerContainer = document.getElementById("trackingContent");
+        const user = window.LocalHubStore.getCurrentUser();
+        const bookings = window.LocalHubStore.getBookings();
+
+        // Active booking is the latest customer booking that is not completed or declined
+        const activeBooking = [...bookings]
+          .reverse()
+          .find(b => b.customerEmail === user.email && b.status !== "completed" && b.status !== "declined");
+
+        const activeOrderBadge = document.getElementById("activeOrderBadge");
+
+        if (!activeBooking) {
+          activeOrderBadge.style.display = "none";
+          trackerContainer.innerHTML = `
+            <div class="empty-state">
+              <p>No active bookings tracked currently.</p>
+              <span style="font-size: 0.75rem; color: var(--slate-400);">Choose an option from the catalog to book one!</span>
+            </div>
+          `;
+          return;
+        }
+
+        activeOrderBadge.style.display = "inline-block";
+
+        // Map order states to step numbers: pending -> accepted -> dispatched -> arrived
+        const steps = [
+          { status: "pending", title: "Order Placed", desc: "Awaiting service provider acceptance." },
+          { status: "accepted", title: "Order Accepted", desc: "Provider is preparing details." },
+          { status: "dispatched", title: "Dispatched", desc: "Provider is on the way to your location!" },
+          { status: "arrived", title: "Arrived", desc: "Provider has arrived at the location!" }
+        ];
+
+        let activeStepIndex = 0;
+        if (activeBooking.status === "accepted") activeStepIndex = 1;
+        else if (activeBooking.status === "dispatched") activeStepIndex = 2;
+        else if (activeBooking.status === "arrived") activeStepIndex = 3;
+
+        const timelineHtml = steps.map((step, idx) => {
+          let stepClass = "";
+          if (idx < activeStepIndex) {
+            stepClass = "completed";
+          } else if (idx === activeStepIndex) {
+            stepClass = "active";
+          }
+
+          return `
+            <div class="timeline-step ${stepClass}">
+              <div class="timeline-bullet">${idx < activeStepIndex ? "✔" : idx + 1}</div>
+              <div class="timeline-content">
+                <h4>${step.title}</h4>
+                <p>${step.desc}</p>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        let interactiveHtml = "";
+        // If arrived, customer can confirm arrival to complete the job
+        if (activeBooking.status === "arrived") {
+          interactiveHtml = `
+            <div class="tracking-interactive-box">
+              <p>🔔 <strong>Service Provider has arrived!</strong> Please confirm to close the service and view your digital receipt.</p>
+              <button class="btn btn-sm btn-primary pulse-glow" onclick="confirmArrival('${activeBooking.id}')" id="confirmArrivalBtn">Confirm Service Arrival</button>
+            </div>
+          `;
+        }
+
+        trackerContainer.innerHTML = `
+          <div style="margin-bottom: 1rem; border-bottom: 1px solid var(--slate-100); padding-bottom: 0.75rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="font-size: 1rem; color: var(--slate-900);">${activeBooking.serviceTitle}</strong>
+              <span class="catalog-item-tag" style="background-color:var(--emerald-50); color:var(--emerald-600); border:1px solid var(--emerald-200)">${activeBooking.id}</span>
+            </div>
+            <div style="font-size:0.8rem; color:var(--slate-500); margin-top:0.25rem;">
+              Scheduled: ${activeBooking.date} at ${activeBooking.time} Slot
+            </div>
+          </div>
+          
+          <div class="timeline">
+            ${timelineHtml}
+          </div>
+
+          ${interactiveHtml}
+        `;
+      }
+
+      function confirmArrival(bookingId) {
+        const ok = window.LocalHubStore.updateBookingStatus(bookingId, "completed");
+        if (ok) {
+          window.showToastNotification("Thank you for confirming! Your order is completed.");
+          activeReviewBookingId = bookingId;
+          
+          // Render rating and comments section
+          document.getElementById("reviewPanel").style.display = "block";
+          setStarRating(5);
+          
+          renderActiveOrderTracking();
+          renderBillsHistory();
+        }
+      }
+
+      // 5-Star Reviews Implementation
+      function setStarRating(rating) {
+        activeSelectedRating = rating;
+        const stars = document.querySelectorAll("#ratingStarsSelector .star-input");
+        stars.forEach(star => {
+          const sRating = parseInt(star.getAttribute("data-rating"));
+          if (sRating <= rating) {
+            star.classList.add("active");
+          } else {
+            star.classList.remove("active");
+          }
+        });
+      }
+
+      function submitActiveReview() {
+        if (!activeReviewBookingId) return;
+
+        const text = document.getElementById("reviewComment").value.trim();
+        const success = window.LocalHubStore.submitReview(activeReviewBookingId, activeSelectedRating, text);
+        
+        if (success) {
+          window.showToastNotification("Review submitted! Thank you for sharing.");
+          document.getElementById("reviewPanel").style.display = "none";
+          document.getElementById("reviewComment").value = "";
+          activeReviewBookingId = null;
+          renderBillsHistory();
+        }
+      }
+
+      // Bills and Receipts History Rendering
+      function renderBillsHistory() {
+        const billsList = document.getElementById("billsList");
+        const user = window.LocalHubStore.getCurrentUser();
+        const bookings = window.LocalHubStore.getBookings();
+
+        // Bills are historical bookings with "completed" state
+        const historical = bookings.filter(b => b.customerEmail === user.email && b.status === "completed");
+
+        if (historical.length === 0) {
+          billsList.innerHTML = `
+            <div class="empty-state" style="padding: 1.5rem 1rem;">
+              <p>No receipt bills recorded.</p>
+            </div>
+          `;
+          return;
+        }
+
+        billsList.innerHTML = historical.map(b => `
+          <div class="order-receipt-card" onclick="openReceiptModal('${b.id}')" id="bill-${b.id}">
+            <div class="receipt-card-details">
+              <h5>${b.serviceTitle}</h5>
+              <span>Bill ${b.id} • ${b.date}</span>
+              ${b.rating ? `<div style="color:var(--amber-500); font-size:0.75rem; margin-top:0.15rem;">★ ${b.rating}/5 rated</div>` : ""}
+            </div>
+            <div class="receipt-card-price">$${b.price}</div>
+          </div>
+        `).join("");
+      }
+
+      // Receipt modal populator
+      function openReceiptModal(bookingId) {
+        const bookings = window.LocalHubStore.getBookings();
+        const b = bookings.find(item => item.id === bookingId);
+        if (!b) return;
+
+        const subtotal = b.price;
+        const platformFee = 5.00;
+        const taxRate = 0.10; // 10% tax
+        const taxAmount = parseFloat((subtotal * taxRate).toFixed(2));
+        const total = parseFloat((subtotal + platformFee + taxAmount).toFixed(2));
+
+        const receiptPaper = document.getElementById("receiptPaperContent");
+        
+        receiptPaper.innerHTML = `
+          <div class="receipt-paper-header">
+            <div class="receipt-paper-logo">LOCAL HUB</div>
+            <p>HYPERLOCAL MARKETPLACE INC.</p>
+            <div class="receipt-paper-metadata" style="margin-top:0.5rem;">
+              TRANSACTION ID: ${b.id}<br>
+              DATE: ${b.date} ${b.time}<br>
+              CUSTOMER: ${b.customerName}<br>
+              EMAIL: ${b.customerEmail}
+            </div>
+          </div>
+
+          <div class="receipt-paper-line-item">
+            <span>DESCRIPTION</span>
+            <span>AMOUNT</span>
+          </div>
+          <div class="receipt-paper-divider"></div>
+          
+          <div class="receipt-paper-line-item">
+            <span>${b.serviceTitle}</span>
+            <span>$${subtotal.toFixed(2)}</span>
+          </div>
+          <div class="receipt-paper-line-item">
+            <span>Platform Service Fee</span>
+            <span>$${platformFee.toFixed(2)}</span>
+          </div>
+          <div class="receipt-paper-line-item">
+            <span>Hyperlocal Tax (10%)</span>
+            <span>$${taxAmount.toFixed(2)}</span>
+          </div>
+
+          <div class="receipt-paper-divider"></div>
+
+          <div class="receipt-paper-total">
+            <span>GRAND TOTAL:</span>
+            <span>$${total.toFixed(2)}</span>
+          </div>
+
+          <div class="receipt-paper-footer">
+            <p>*** THANK YOU FOR SUPPORTING NEIGHBORS ***</p>
+            <p>Questions? Contact support@localhub.test</p>
+          </div>
+        `;
+
+        document.getElementById("receiptModalOverlay").classList.add("active");
+      }
+
+      function closeReceiptModal() {
+        document.getElementById("receiptModalOverlay").classList.remove("active");
+      }
+
+      function printReceiptPaper() {
+        window.print();
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "LocalHub",
+  "description": "Hyperlocal Home Service & Rental Marketplace with active order tracking, provider dashboards, and local state synchronization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
